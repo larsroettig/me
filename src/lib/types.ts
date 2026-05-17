@@ -1,0 +1,13 @@
+export interface PostMeta {
+  slug: string;
+  title: string;
+  publishedAt: string;
+  excerpt: string;
+  tags: string[];
+  readingTime: string;
+  draft?: boolean;
+}
+
+export interface Post extends PostMeta {
+  content: string;
+}

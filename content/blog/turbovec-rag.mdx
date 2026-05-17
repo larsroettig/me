@@ -1,0 +1,80 @@
+---
+title: "turbovec: Local RAG Without the 31 GB Tax"
+publishedAt: "2026-05-17"
+excerpt: "Running RAG locally with float32 embeddings is a memory problem. turbovec cuts a 10M-doc corpus from 31 GB to 4 GB with no codebook training and a one-import swap."
+tags:
+  - RAG
+  - Vector Search
+  - Rust
+  - Python
+  - AI
+draft: false
+---
+
+I've been building local RAG systems for a few months, and the RAM situation gets annoying fast. float32 embeddings at 1536 dimensions: 6 KB per vector. A corpus of 10 million documents is roughly 60 GB of raw vectors before indexing overhead. That doesn't fit on a laptop, and even on a machine with 64 GB of RAM you're leaving yourself no headroom for anything else.
+
+I kept reaching for FAISS. It works. But I kept hitting the same two friction points: training the index requires a representative sample of your corpus upfront, and the quantization quality depends on how well that sample captures the real distribution. If your data distribution shifts, you're rebuilding.
+
+[turbovec](https://github.com/RyanCodrai/turbovec) solves both, and the reason it can is worth understanding.
+
+## What TurboQuant actually does
+
+The [TurboQuant paper](https://arxiv.org/abs/2504.19874) (ICLR 2026) is built on a specific observation: if you apply a random orthogonal rotation to your vectors before quantizing, every coordinate independently follows a Beta distribution that converges to Gaussian N(0, 1/d) in high dimensions. This holds regardless of what the input data looks like.
+
+The distribution being known before you see any data means the optimal quantization buckets can be precomputed from the math alone. No training pass, no sample required, no rebuilds as the corpus grows.
+
+How that plays out in practice:
+
+1. Normalize each vector to unit length, store the norm separately as a float
+2. Apply a fixed random rotation matrix — same matrix for the whole index, computed once
+3. Quantize each coordinate against precomputed bucket boundaries; at 4-bit, that's 16 buckets per coordinate
+4. Pack the integers: a 1536-dim vector goes from 6,144 bytes (float32) to 384 bytes (4-bit)
+
+A 10M-doc corpus: 31 GB float32 becomes 4 GB compressed. That fits in laptop RAM.
+
+Search doesn't decompress vectors. It rotates the query once into the same domain and scores against codebook values directly, using SIMD kernels (NEON on ARM, AVX-512 on x86). On ARM it beats FAISS IndexPQFastScan by 12–20%.
+
+## The practical part: one import swap
+
+turbovec ships drop-in replacements for the in-memory vector stores in LangChain, LlamaIndex, Haystack, and Agno. For LangChain:
+
+```bash
+pip install turbovec[langchain]
+```
+
+```python
+# Before
+from langchain_core.vectorstores import InMemoryVectorStore
+
+# After — same API, smaller footprint, faster search
+from turbovec.integrations.langchain import TurboVecVectorStore as InMemoryVectorStore
+```
+
+Your retriever, your pipeline, your splitter — nothing else changes. I swapped this into an existing LangChain project in a few minutes. The only observable difference was memory usage dropping by roughly 8x and retrieval getting a bit faster.
+
+For `IdMapIndex` (when you need stable IDs that survive deletes):
+
+```python
+from turbovec import IdMapIndex
+import numpy as np
+
+index = IdMapIndex(dim=1536, bit_width=4)
+index.add_with_ids(vectors, np.array([1001, 1002, 1003], dtype=np.uint64))
+
+scores, ids = index.search(query, k=10)
+index.remove(1002)  # O(1) by id
+```
+
+## When FAISS is still correct
+
+turbovec is an in-memory flat index — it searches everything. For a few million vectors on a single machine, that's fine. At very large scale (hundreds of millions), you need IVF partitioning to reduce the search scope, and FAISS is the right tool for that.
+
+On low-dimensional embeddings (d=200, GloVe territory), turbovec's recall at R@1 lags FAISS by 3–6 points. The Beta distribution assumption loosens at low dimensions. For modern embedding models (d=1536, d=3072), the gap is essentially zero — both converge to 1.0 recall by k=4–8.
+
+So: turbovec for local RAG with modern embedding dimensions, FAISS for very large corpora or GPU-accelerated search.
+
+## What I'm using it for
+
+I'm running turbovec in [ThoughtForge](https://github.com/larsroettig/thoughtforge) for the per-space semantic search. The nomic-embed-text-v1.5 model produces 768-dimensional embeddings; at 4-bit compression the full index is small enough that loading it at app startup takes under a second. Local embeddings, local index, no data leaves the machine.
+
+If you're building local RAG and hitting the float32 memory wall, turbovec is the first thing I'd try.

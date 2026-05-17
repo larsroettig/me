@@ -1,0 +1,54 @@
+---
+title: "ThoughtForge: What I Learned Building a Local AI Planning App"
+publishedAt: "2026-05-17"
+excerpt: "I built a local-first AI planning assistant with Tauri, Rust, and LM Studio. Here's what actually surprised me along the way."
+tags:
+  - Tauri
+  - Rust
+  - AI
+  - Local-First
+  - MCP
+draft: false
+---
+
+Meeting transcripts pile up. I had three or four per day for a stretch, each generating action items that ended up scattered across Notion, Slack, and browser tabs I kept open as a reminder. I wanted one tool that would extract the action items, put them on a board, and let me plan against them without sending my meeting content to an external API.
+
+So I built [ThoughtForge](https://github.com/larsroettig/thoughtforge): a local-first AI planning assistant that runs entirely on your machine, uses LM Studio for the LLM, and makes zero network calls outside localhost.
+
+## Learning Rust by shipping a Tauri app
+
+I've written TypeScript professionally for years. Rust was a hobby language at best before this project. Tauri forces you past hobby level fast because the Rust backend is load-bearing: every file I/O operation, every LLM call, every IPC message goes through it.
+
+The borrow checker has a specific kind of difficulty. You have to reason about ownership before you write the function, not after it compiles for the third time. Once that model clicked, the guarantees felt worth the cost. The SSRF guard that blocks all non-localhost LLM calls, for example, is about 15 lines of Rust that I'd put in production without much anxiety. The equivalent in Node would need tests I'd probably forget to write three months from now.
+
+Tauri also produces a much smaller binary than Electron. On macOS my release build is under 20 MB. Electron apps with the same feature set typically run 10x that. That's not a design opinion; it's what falls out of shipping a native WebView with a Rust backend instead of bundling Chromium.
+
+## The local-first constraint simplifies a lot
+
+Committing to "no network calls except localhost" early made many decisions automatic. No auth layer, no syncing infrastructure to build, no questions about where data lives. Storage is Markdown files and JSON in `~/Documents/ThoughtForge`, which means your data is just files. You can back them up, grep them, or read them with anything.
+
+The trade-off is sync across machines. If you want ThoughtForge on two computers, you put the storage folder in iCloud Drive or Dropbox. I spent about 48 hours considering whether to build sync myself before deciding it was a solved problem I didn't need to solve.
+
+## MCP makes the planning assistant actually useful
+
+ThoughtForge ships a built-in MCP server. Wire it into Claude Desktop and you can say "move all the blocked tasks in my Design System space to next week" and Claude will do that using `list_tasks` and `update_task` rather than you copy-pasting task names into a chat window.
+
+Building the MCP server took about two weeks. The protocol spec is clear; the tricky part was the security layer. The bearer token comparison uses constant-time equality so timing information doesn't leak to anything making local TCP connections. That's the kind of detail that doesn't matter until it does.
+
+## The AI confirmation pattern
+
+The chat feature can propose changes to your tasks, but it never writes without your confirmation. You ask "plan my day", the LLM returns a set of proposed changes, and each one appears as a card you can apply or skip individually. The AI does not touch your vault until you say so.
+
+This is the only UX decision I'm fully confident about from the start. Every other AI tool either gives you a text answer that requires manual follow-through, or just applies changes and hopes for the best. The confirmation step is slower, but you stay in control of your own task list, which matters more when the tool is managing real work.
+
+## What I'd do differently
+
+I started with Zustand for state management, which was the right call. I started with a flat task list and retrofitted spaces later, which cost me roughly a week of migration code and some embarrassing intermediate commits. If your app has a "per-project" concept, model it from day one.
+
+I also added Playwright late. The setup itself was fine but coverage in the spaces view is still thin because by the time I got there I'd lost patience for writing tests. Writing E2E tests before you have 40 components is much less painful than writing them after.
+
+## Where it goes next
+
+Goal tracking and calendar sync are next. The MCP server already supports HTTP transport alongside stdio, so integrating into other tools beyond Claude Desktop should be straightforward.
+
+Code is on GitHub: [larsroettig/thoughtforge](https://github.com/larsroettig/thoughtforge). MIT license, contributions welcome.
