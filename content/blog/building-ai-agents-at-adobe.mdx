@@ -1,0 +1,63 @@
+---
+title: "What I Learned Building AI Agents"
+publishedAt: "2026-05-10"
+excerpt: "Agents work well for specific problems and fail in predictable ways. Here's what I learned about the patterns that actually hold up."
+tags:
+  - AI
+  - Agents
+  - Architecture
+  - RAG
+draft: false
+---
+
+The pitch for agents is compelling: stop writing glue code for every workflow and let a model orchestrate it instead. After a year of building and shipping them, the reality is more specific than that.
+
+Agents work well when the task is open-ended (the exact steps to complete it aren't known in advance), tool-composable (it can be broken into discrete, verifiable sub-actions), and high-latency-tolerant — you can wait 10–30 seconds for a result. If your task doesn't fit those conditions, a traditional pipeline with a single well-crafted prompt will outperform an agent every time.
+
+## The loop that works
+
+After many iterations, I landed on a simple mental model: treat the agent as a loop with a termination condition the model controls.
+
+```typescript
+async function runAgent(goal: string, tools: Tool[]) {
+  const history: Message[] = [];
+
+  while (true) {
+    const response = await model.complete({
+      system: AGENT_SYSTEM_PROMPT,
+      messages: [...history, { role: "user", content: goal }],
+      tools,
+    });
+
+    if (response.stop_reason === "end_turn") {
+      return response.content;
+    }
+
+    const toolResults = await executeTools(response.tool_use);
+    history.push({ role: "assistant", content: response.content });
+    history.push({ role: "user", content: toolResults });
+  }
+}
+```
+
+The important thing: don't try to be clever about when to stop. Let the model decide. Trust the `end_turn` signal.
+
+## What goes wrong
+
+**Infinite loops.** The model gets stuck calling the same tool repeatedly because it has no way to signal "I've tried this and it doesn't work." Fix: `max_iterations` cap and a `memory` tool that lets the agent record dead ends explicitly.
+
+**Tool hallucinations.** The model invents arguments that don't exist in your schema. Fix: tight JSON schemas with strict validation on every call. Reject bad inputs before they reach your API.
+
+**Context window blowout.** Long-running agents accumulate tool results that eat the context window. Fix: summarize old tool outputs instead of keeping raw responses in history. This is the one I kept deferring too long — the symptoms show up late and the fix is annoying to retrofit.
+
+## RAG as a tool, not a pipeline
+
+One pattern I've settled on: treat retrieval as a tool the agent calls when it decides it needs context, rather than baking it into a fixed pipeline upfront. This works better for open-ended tasks because the agent can decide what to search for based on intermediate results, not just the original query.
+
+The downside is latency — each retrieval round trip adds time. If your latency budget is tight, a pre-retrieval pipeline is probably still the right call. If answer quality matters more than speed, giving the agent retrieval as a tool is worth it.
+
+## The actual filter
+
+An agent can handle a task if you'd be comfortable with someone new figuring it out by trial and error — given the right guardrails for the ways they'd predictably go wrong. That's the filter I apply before deciding whether to reach for an agent.
+
+If the task needs to always go exactly one way, don't use an agent. Use a pipeline with a prompt.

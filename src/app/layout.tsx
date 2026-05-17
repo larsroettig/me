@@ -8,11 +8,11 @@ import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: {
-    default: "Lars Roettig — AI Engineer",
+    default: "Lars Roettig — Senior Technical Architect",
     template: "%s | Lars Roettig",
   },
   description:
-    "AI Engineer at Adobe. Writing about AI agents, architecture, and building things that last.",
+    "Senior Technical Architect at Adobe. Writing about AI agents, architecture, and building things that last.",
   openGraph: {
     type: "website",
     locale: "en_US",

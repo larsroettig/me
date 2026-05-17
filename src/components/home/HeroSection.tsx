@@ -37,7 +37,7 @@ export default function HeroSection() {
           className="text-lg md:text-2xl font-mono mb-3 tracking-wide"
           style={{ color: "#00f5ff", textShadow: "var(--glow-cyan-sm)" }}
         >
-          AI Engineer @ Adobe
+          Senior Technical Architect @ Adobe
         </p>
 
         <p

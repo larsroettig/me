@@ -26,7 +26,7 @@ export default function AboutSection() {
             <div className="space-y-3" style={{ color: "#c0c0d8" }}>
               <p>
                 <span style={{ color: "#00f5ff" }}>{">"}</span>{" "}
-                I&apos;m an AI Engineer at{" "}
+                I&apos;m a Senior Technical Architect at{" "}
                 <NeonBadge label="Adobe" variant="magenta" />{" "}
                 building intelligent systems that power creative workflows at scale.
               </p>
@@ -59,7 +59,7 @@ export default function AboutSection() {
           {/* Decorative side panel */}
           <div className="hidden md:flex flex-col gap-4">
             {[
-              { label: "ROLE", value: "AI Engineer" },
+              { label: "ROLE", value: "Sr. Technical Architect" },
               { label: "COMPANY", value: "Adobe" },
               { label: "FOCUS", value: "AI Systems & Architecture" },
               { label: "STATUS", value: "Building in prod" },

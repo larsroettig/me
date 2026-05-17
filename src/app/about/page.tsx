@@ -4,24 +4,32 @@ import SectionHeading from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "AI Engineer at Adobe, building AI systems and agents. Based in Bavaria, Germany.",
+  description: "Senior Technical Architect at Adobe. Building AI systems, agents, and architecture. Based in Bavaria, Germany.",
 };
 
 const experience = [
   {
-    title: "AI Engineer",
+    title: "Senior Technical Architect",
     company: "Adobe",
-    period: "2024 – present",
+    period: "Feb 2025 – present",
     description:
-      "Building AI agents and intelligent systems that power creative workflows. Focus on LLM integration, agent architecture, and shipping AI capabilities to production at scale.",
+      "Architect focusing on AI systems, agents, and architecture. Building intelligent capabilities that connect LLMs to creative workflows at scale.",
     current: true,
   },
   {
-    title: "Senior Technical Architect",
-    company: "TechDivision GmbH",
-    period: "2016 – 2024",
+    title: "Adobe Commerce Technical Architect",
+    company: "Adobe",
+    period: "Aug 2022 – Feb 2025",
     description:
-      "Senior Software Engineer and later Architect at a digital agency focused on e-commerce. Led teams across large commerce projects. Maintainer on the Magento PWA Core Team. Served as remote team lead for a US client for 12 months in 2019–2020.",
+      "Technical Architect for Adobe Commerce. Front-end architecture, JavaScript, and platform engineering across large-scale commerce deployments.",
+    current: false,
+  },
+  {
+    title: "Senior Software Engineer / Architect",
+    company: "TechDivision GmbH",
+    period: "2016 – 2022",
+    description:
+      "Senior engineer and later architect at a digital agency focused on e-commerce. Led teams across large Magento projects. Maintainer on the Magento PWA Core Team. Served as remote team lead for a US client for 12 months in 2019–2020.",
     current: false,
   },
 ];
@@ -64,7 +72,7 @@ export default function AboutPage() {
           Lars Roettig
         </h1>
         <p className="text-xl font-mono mb-2" style={{ color: "#e0e0f0" }}>
-          AI Engineer @ Adobe
+          Senior Technical Architect @ Adobe
         </p>
         <p className="text-sm font-mono" style={{ color: "#7878a0" }}>
           Bavaria, Germany
@@ -84,10 +92,10 @@ export default function AboutPage() {
         >
           <p>
             <span style={{ color: "#00f5ff" }}>{">"}</span>{" "}
-            I build AI agents and intelligent systems at Adobe, working on the infrastructure that
-            connects large language models to real creative workflows. Most of my time goes into
-            agent architecture, LLM integration patterns, and figuring out what actually holds up
-            in production versus what only works in demos.
+            I&apos;m a Senior Technical Architect at Adobe, working on AI systems and the
+            infrastructure that connects large language models to real creative workflows.
+            Most of my time goes into agent architecture, LLM integration patterns, and
+            figuring out what actually holds up in production versus what only works in demos.
           </p>
           <p>
             <span style={{ color: "#00f5ff" }}>{">"}</span>{" "}
