@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "@/components/ui/Logo";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -21,12 +22,14 @@ export default function Header() {
       }}
     >
       <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-        <Link
-          href="/"
-          className="text-lg font-bold tracking-widest font-mono"
-          style={{ color: "#00f5ff", textShadow: "var(--glow-cyan-sm)" }}
-        >
-          LR_
+        <Link href="/" className="flex items-center" aria-label="Lars Roettig — Home">
+          <Logo
+            size={34}
+            style={{
+              color: "#00f5ff",
+              filter: "drop-shadow(0 0 6px #00f5ff) drop-shadow(0 0 12px #00f5ff60)",
+            }}
+          />
         </Link>
         <ul className="flex gap-8">
           {navLinks.map(({ href, label }) => {
