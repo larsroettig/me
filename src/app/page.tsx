@@ -12,9 +12,6 @@ export default function HomePage() {
   return (
     <>
       <HeroSection />
-      <AboutSection />
-      <SkillsSection />
-
       <section className="max-w-5xl mx-auto px-6 py-16">
         <SectionHeading title="LATEST_POSTS" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -35,6 +32,8 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      <AboutSection />
+      <SkillsSection />
     </>
   );
 }
