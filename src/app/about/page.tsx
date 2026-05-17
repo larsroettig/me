@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NeonBadge from "@/components/ui/NeonBadge";
 import SectionHeading from "@/components/ui/SectionHeading";
+import CompanyLogo from "@/components/ui/CompanyLogo";
 
 export const metadata: Metadata = {
   title: "About",
@@ -11,6 +12,7 @@ const experience = [
   {
     title: "Senior Technical Architect",
     company: "Adobe",
+    logo: "adobe" as const,
     period: "Feb 2025 – present",
     description:
       "Architect focusing on AI systems, agents, and architecture. Building intelligent capabilities that connect LLMs to creative workflows at scale.",
@@ -19,6 +21,7 @@ const experience = [
   {
     title: "Adobe Commerce Technical Architect",
     company: "Adobe",
+    logo: "adobe" as const,
     period: "Aug 2022 – Feb 2025",
     description:
       "Technical Architect for Adobe Commerce. Front-end architecture, JavaScript, and platform engineering across large-scale commerce deployments.",
@@ -27,6 +30,7 @@ const experience = [
   {
     title: "Senior Software Engineer / Architect",
     company: "TechDivision GmbH",
+    logo: "techdivision" as const,
     period: "2016 – 2022",
     description:
       "Senior engineer and later architect at a digital agency focused on e-commerce. Led teams across large Magento projects. Maintainer on the Magento PWA Core Team. Served as remote team lead for a US client for 12 months in 2019–2020.",
@@ -141,16 +145,21 @@ export default function AboutPage() {
               }}
             >
               <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                <div>
-                  <h3
-                    className="font-bold text-base font-mono"
-                    style={{ color: role.current ? "#00f5ff" : "#e0e0f0" }}
-                  >
-                    {role.title}
-                  </h3>
-                  <p className="text-sm font-mono mt-0.5" style={{ color: "#7878a0" }}>
-                    {role.company}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 shrink-0">
+                    <CompanyLogo company={role.logo} size={32} />
+                  </div>
+                  <div>
+                    <h3
+                      className="font-bold text-base font-mono"
+                      style={{ color: role.current ? "#00f5ff" : "#e0e0f0" }}
+                    >
+                      {role.title}
+                    </h3>
+                    <p className="text-sm font-mono mt-0.5" style={{ color: "#7878a0" }}>
+                      {role.company}
+                    </p>
+                  </div>
                 </div>
                 <span
                   className="text-xs font-mono tracking-wider px-2 py-1 rounded-sm"

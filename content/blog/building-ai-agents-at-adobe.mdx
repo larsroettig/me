@@ -1,63 +1,76 @@
 ---
 title: "What I Learned Building AI Agents"
-publishedAt: "2026-05-10"
-excerpt: "Agents work well for specific problems and fail in predictable ways. Here's what I learned about the patterns that actually hold up."
-tags:
-  - AI
-  - Agents
-  - Architecture
-  - RAG
-draft: false
+excerpt: "Twelve months of building agents in production. The part nobody writes about is how much ordinary software engineering the job actually is."
+publishedAt: "2024-11-15"
+tags: ["AI Agents", "LLM", "Architecture", "RAG"]
+readingTime: "8 min read"
 ---
 
-The pitch for agents is compelling: stop writing glue code for every workflow and let a model orchestrate it instead. After a year of building and shipping them, the reality is more specific than that.
+Twelve months ago I started building AI agents for production workflows. I had done enough LLM integration to know the demos were easy. The production part was what I wanted to figure out.
 
-Agents work well when the task is open-ended (the exact steps to complete it aren't known in advance), tool-composable (it can be broken into discrete, verifiable sub-actions), and high-latency-tolerant — you can wait 10–30 seconds for a result. If your task doesn't fit those conditions, a traditional pipeline with a single well-crafted prompt will outperform an agent every time.
+Here is what I learned.
 
-## The loop that works
+## Agents are mostly just state machines
 
-After many iterations, I landed on a simple mental model: treat the agent as a loop with a termination condition the model controls.
+The mental model that keeps tripping people up is treating agents as autonomous reasoners. They are not. An agent is a loop: observe state, pick an action, execute it, update state, repeat. Once you think about it that way, most of the hard problems turn into ordinary software problems.
 
-```typescript
-async function runAgent(goal: string, tools: Tool[]) {
-  const history: Message[] = [];
+State management is the main one. If your agent fails on step 7 of a 10-step task, can you resume from step 7? Most early implementations I saw could not. They would retry from the start, which burns tokens and time and occasionally creates duplicate side effects. Building proper checkpointing in from the beginning matters more than which LLM you pick.
 
-  while (true) {
-    const response = await model.complete({
-      system: AGENT_SYSTEM_PROMPT,
-      messages: [...history, { role: "user", content: goal }],
-      tools,
-    });
+The second problem is tool reliability. Agents call tools. Tools fail. A tool failing is not an agent failing; it is a recoverable error. The agent needs to distinguish "this tool returned an error I can work around" from "this task is fundamentally not achievable." Without that distinction, agents either give up too early or retry forever.
 
-    if (response.stop_reason === "end_turn") {
-      return response.content;
-    }
+## The context window is your main constraint
 
-    const toolResults = await executeTools(response.tool_use);
-    history.push({ role: "assistant", content: response.content });
-    history.push({ role: "user", content: toolResults });
-  }
-}
-```
+Every production agent I have built ran into context pressure before it ran into reasoning limitations. Long conversations accumulate fast. Tool outputs accumulate faster. By the time you are several steps into a complex task, you can easily fill 100K tokens just with intermediate results.
 
-The important thing: don't try to be clever about when to stop. Let the model decide. Trust the `end_turn` signal.
+The naive solution is bigger context windows. That helps, but it is expensive and it does not scale indefinitely. The better solution is being deliberate about what you keep.
 
-## What goes wrong
+I now think about context in three tiers:
 
-**Infinite loops.** The model gets stuck calling the same tool repeatedly because it has no way to signal "I've tried this and it doesn't work." Fix: `max_iterations` cap and a `memory` tool that lets the agent record dead ends explicitly.
+1. **Working memory**: what the agent needs right now. Current step, current tool output, immediate error state.
+2. **Episodic memory**: key decisions made earlier in the task. Summarized, not verbatim.
+3. **Semantic memory**: retrieved at query time from a vector store. Not in context until needed.
 
-**Tool hallucinations.** The model invents arguments that don't exist in your schema. Fix: tight JSON schemas with strict validation on every call. Reject bad inputs before they reach your API.
+The third tier is where RAG comes in, and it changed how I build agents.
 
-**Context window blowout.** Long-running agents accumulate tool results that eat the context window. Fix: summarize old tool outputs instead of keeping raw responses in history. This is the one I kept deferring too long — the symptoms show up late and the fix is annoying to retrofit.
+## RAG is not a retrieval problem, it is a chunking problem
 
-## RAG as a tool, not a pipeline
+I spent too long optimizing retrieval before I understood the real issue. Embedding quality and vector search accuracy matter, but they matter less than how you split the source documents.
 
-One pattern I've settled on: treat retrieval as a tool the agent calls when it decides it needs context, rather than baking it into a fixed pipeline upfront. This works better for open-ended tasks because the agent can decide what to search for based on intermediate results, not just the original query.
+Naive chunking by character count breaks semantic units. A chunk that starts mid-sentence and ends mid-paragraph will embed poorly because the embedding model cannot infer what the chunk is actually about. That chunk will never get retrieved correctly no matter how good your search index is.
 
-The downside is latency — each retrieval round trip adds time. If your latency budget is tight, a pre-retrieval pipeline is probably still the right call. If answer quality matters more than speed, giving the agent retrieval as a tool is worth it.
+What works better:
 
-## The actual filter
+- Split on semantic boundaries (paragraphs, sections, headers) rather than fixed character counts
+- Overlap adjacent chunks slightly so context bleeds across boundaries
+- Store metadata (source, section title, document date) and filter before vector search, not after
+- Keep chunks short. 300-500 tokens per chunk retrieves better than 1500-token chunks, in my experience
 
-An agent can handle a task if you'd be comfortable with someone new figuring it out by trial and error — given the right guardrails for the ways they'd predictably go wrong. That's the filter I apply before deciding whether to reach for an agent.
+The other thing RAG gets wrong by default is the assumption that retrieval alone is enough. For complex queries, you often need to retrieve, summarize, then retrieve again based on the summary. Two-stage retrieval adds latency but it dramatically improves answer quality when the knowledge base is large.
 
-If the task needs to always go exactly one way, don't use an agent. Use a pipeline with a prompt.
+## Structured output is not optional in production
+
+JSON mode helps. It is not enough.
+
+The problem is JSON mode guarantees syntactically valid JSON, not semantically valid JSON. You can get a perfectly valid JSON object that has the wrong keys, missing required fields, or values of the wrong type. Downstream code that processes agent output needs to validate against a schema, and when validation fails, the agent needs to know how to retry with the error as feedback.
+
+I now write every tool return type as a Pydantic model (Python) or a Zod schema (TypeScript) and validate on every call. The validation errors become part of the prompt on retry. This alone cut my malformed-output rate by about 80% on complex multi-step tasks.
+
+## Latency compounds
+
+A single LLM call takes 1-3 seconds. An agent that makes 10 calls to complete a task takes 10-30 seconds minimum, and that is before tool execution time. Users notice.
+
+The two moves that helped most:
+
+**Parallelize where you can.** Many agent tasks have independent subtasks. Research three topics simultaneously instead of sequentially. Gather context from multiple sources at once. The orchestration complexity is worth it.
+
+**Cache aggressively.** Tool outputs that are deterministic for a given input should be cached. LLM calls that share a long system prompt benefit from prefix caching (Anthropic's API supports this). Shaving 30% off latency often requires no model changes at all, just better caching.
+
+## The thing that actually matters
+
+The most important architectural decision is not which model you use or which framework you pick. It is how you handle failure.
+
+An agent that fails gracefully, logs what it tried, and tells the user what went wrong is more useful in production than an agent that succeeds 95% of the time and silently produces bad output the other 5%. Observability, error categorization, and human-in-the-loop escape hatches are not optional extras. They are the product.
+
+I still find most agent demos frustrating for this reason. The happy path looks great. Nobody shows what happens on step 4 when the database is slow and the LLM hallucinates a field name.
+
+Build for that case first. The demo will take care of itself.

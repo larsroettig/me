@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import ObfuscatedEmail from "@/components/ui/ObfuscatedEmail";
 
 export const metadata: Metadata = {
   title: "Privacy Statement",
-  description: "Privacy statement for larsroettig.dev",
+  description: "Privacy statement for larsroettig.me",
 };
 
 export default function PrivacyPage() {
@@ -25,9 +26,7 @@ export default function PrivacyPage() {
             83109 Großkarolinenfeld<br />
             Germany<br />
             Email:{" "}
-            <a href="mailto:larsroettig@mailbox.org" style={{ color: "#ff00ff" }}>
-              larsroettig@mailbox.org
-            </a>
+            <ObfuscatedEmail encoded="bGFyc3JvZXR0aWdAbWFpbGJveC5vcmc=" />
           </address>
         </section>
 

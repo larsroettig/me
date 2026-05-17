@@ -1,0 +1,46 @@
+# Lars Roettig
+
+Lars Roettig is a Senior Technical Architect at Adobe, based in Bavaria, Germany.
+He has worked at Adobe since August 2022 across two roles:
+- Adobe Commerce Technical Architect (Aug 2022 – Feb 2025)
+- Senior Technical Architect, AI focus (Feb 2025 – present)
+
+## About
+
+Lars builds AI agents, LLM integrations, and technical architecture for creative
+workflows at Adobe scale. Before Adobe he spent 8 years as a software engineer
+and architect at TechDivision GmbH, working on large Magento/e-commerce platforms
+and serving as a maintainer on the Magento PWA Core Team.
+
+## Expertise
+
+- AI agents and LLM integration in production systems
+- Technical architecture for large-scale web platforms
+- Adobe Commerce (formerly Magento) architecture
+- RAG systems and vector search (turbovec, LangChain, LlamaIndex)
+- Rust and Tauri desktop application development
+- Next.js, TypeScript, React, Python
+
+## Projects
+
+- ThoughtForge: local-first AI planning assistant built with Tauri + Rust + React.
+  Extracts action items from meeting transcripts, manages tasks on a kanban board,
+  uses a local LLM via LM Studio, and ships a built-in MCP server for Claude Desktop.
+  Source: https://github.com/larsroettig/thoughtforge
+
+## Writing
+
+Lars writes about AI engineering, RAG, vector search, agent architecture, and
+practical software development at https://larsroettig.me/blog
+
+Recent posts:
+- What I Learned Building AI Agents
+- turbovec: Local RAG Without the 31 GB Tax
+- ThoughtForge: What I Learned Building a Local AI Planning App
+
+## Contact & Links
+
+- Website: https://larsroettig.me
+- GitHub: https://github.com/larsroettig
+- LinkedIn: https://linkedin.com/in/larsroettig
+- Location: Bavaria, Germany

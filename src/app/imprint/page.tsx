@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import ObfuscatedEmail from "@/components/ui/ObfuscatedEmail";
 
 export const metadata: Metadata = {
   title: "Imprint",
-  description: "Legal information and imprint for larsroettig.dev",
+  description: "Legal information and imprint for larsroettig.me",
 };
 
 export default function ImprintPage() {
@@ -28,9 +29,7 @@ export default function ImprintPage() {
           </address>
           <p className="mt-4">
             Email:{" "}
-            <a href="mailto:larsroettig@mailbox.org" style={{ color: "#ff00ff" }}>
-              larsroettig@mailbox.org
-            </a>
+            <ObfuscatedEmail encoded="bGFyc3JvZXR0aWdAbWFpbGJveC5vcmc=" />
           </p>
         </section>
 
