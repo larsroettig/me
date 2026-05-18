@@ -92,6 +92,31 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2>Analytics</h2>
+          <p>
+            This site uses Vercel Analytics to measure page views and understand how visitors use
+            the site. Vercel Analytics does not use cookies, does not track individuals across
+            sites, and does not store personally identifiable information. The data collected
+            includes page URL, referrer, browser type, operating system, and country derived from
+            the anonymised IP address. IP addresses are not stored.
+          </p>
+          <p>
+            Data is processed by Vercel Inc., 340 S Lemon Ave #4133, Walnut, CA 91789, USA. The
+            legal basis is our legitimate interest in understanding aggregate site usage (Art. 6(1)(f)
+            GDPR). For details, see{" "}
+            <a
+              href="https://vercel.com/legal/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#ff00ff" }}
+            >
+              Vercel&apos;s Privacy Policy
+            </a>
+            .
+          </p>
+        </section>
+
+        <section>
           <h2>Right of Complaint</h2>
           <p>
             In case of data protection questions, you have the right to lodge a complaint with the
