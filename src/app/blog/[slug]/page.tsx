@@ -7,6 +7,8 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
 import { getAllPosts, getPostBySlug } from "@/lib/mdx";
 import PostHeader from "@/components/blog/PostHeader";
+import MermaidDiagram from "@/components/blog/MermaidDiagram";
+import { rehypeMermaidComponent } from "@/lib/rehype-mermaid-component";
 import Link from "next/link";
 
 interface PageProps {
@@ -85,6 +87,7 @@ export default async function PostPage({ params }: PageProps) {
             mdxOptions: {
               remarkPlugins: [remarkGfm],
               rehypePlugins: [
+                rehypeMermaidComponent,
                 rehypeSlug,
                 [rehypeAutolinkHeadings, { behavior: "wrap" }],
                 [
@@ -95,6 +98,15 @@ export default async function PostPage({ params }: PageProps) {
                   },
                 ],
               ],
+            },
+          }}
+          components={{
+            div: (props) => {
+              const diagram = props["data-mermaid-diagram"] as string | undefined;
+              if (diagram) {
+                return <MermaidDiagram diagram={decodeURIComponent(diagram)} />;
+              }
+              return <div {...props} />;
             },
           }}
         />
