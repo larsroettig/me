@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/700.css";
@@ -89,6 +90,18 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
       </body>
+      {/* Privacy-friendly analytics by Plausible */}
+      <Script
+        id="plausible-init"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()`,
+        }}
+      />
+      <Script
+        src="https://plausible.io/js/pa-oD2ki96DsLBsdh97qrqTE.js"
+        strategy="afterInteractive"
+      />
     </html>
   );
 }
