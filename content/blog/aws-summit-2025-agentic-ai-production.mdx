@@ -68,7 +68,54 @@ flowchart LR
 
 One detail I hadn't considered before: they tried sending the AI response five seconds after ticket submission. Customer satisfaction dropped. People felt the speed was inhuman and didn't trust the answer. They now add an artificial delay. The content didn't change, the timing did, and satisfaction went back up.
 
-The system splits B2C and B2B into separate agent chains, because B2B tickets carry more company-specific context and require more specialized handling. Observability is built in from the start: every response is traced, retrieval success rates and model usage are tracked, and quality scores feed back into the system.
+The system splits B2C and B2B into separate agent chains, because B2B tickets carry more company-specific context and require more specialized handling. Observability is built in from the start: every response is traced, retrieval success rates and model usage are tracked, and quality scores feed back into the system. That observability also changed how the team debugs. The question shifted from "what did the model answer?" to "why did the workflow behave this way?", which means tracing which tools were called, what was retrieved and how relevant it was, where latency came from, and what CSAT scores and ticket reopen rates are telling you about specific workflow paths.
+
+```mermaid
+flowchart LR
+    A[Normalized Support Request] --> B[Router Agent]
+
+    B --> C[Consumer Support Agent]
+    B --> D[B2B Support Agent]
+    B --> E[Human Handoff Agent]
+
+    C --> F[Ticket Update Composer]
+    D --> F
+
+    F --> G[Zendesk / Salesforce API]
+```
+
+> Multi-agent does not mean everyone talks to everyone.
+
+Bounded specialization reduces accidental cross-talk and makes handoff behavior easier to reason about. A few architectural decisions that make this work in practice:
+
+- The **Router Agent** decides which specialized agent handles the request; nothing else does routing.
+- Specialized agents are isolated by responsibility and don't call each other directly.
+- Only the **Ticket Update Composer** writes back to external systems (Zendesk, Salesforce).
+- Human escalation is an explicit path, not a fallback you discover at 2am.
+- Tool permissions and handoff contracts are defined up front, not negotiated at runtime.
+
+The architecture is only part of what makes this production-grade. Agents introduced operational concerns that became part of the product itself:
+
+- **IaC and reproducibility**: agents, collaborators, roles, Lambda functions, API Gateway, and knowledge base configuration all need reproducible deployment. Drift between environments is a real failure mode.
+- **Aliases and versioning**: promote tested versions explicitly; don't rely on draft agent behavior in production.
+- **Latency budgets**: multi-tool workflows can exceed webhook timeouts. Latency is a design constraint, not a monitoring afterthought.
+- **Structured traces**: log intent, retrieval, tool inputs, API errors, and response payloads. Debugging an agentic workflow without traces is guesswork.
+- **Human QA sampling**: review low CSAT scores, ticket reopen rates, and escalation reasons on a regular cadence.
+- **Cost guardrails**: cap agent steps, retries, token budgets, and retrieval depth. Unbounded agents are a billing incident waiting to happen.
+
+The customer sees the answer. Engineering owns the routing, policy, traces, and feedback loop.
+
+Choosing the right level of agent complexity is its own decision. Not everything needs a full multi-agent setup:
+
+| Use case | Direct Bedrock call | Bedrock Agent | AgentCore |
+|---|---|---|---|
+| One decision, known outputs | Best fit | Overkill | Overkill |
+| Needs RAG + tools | Possible but manual | Best fit | Good fit |
+| Multiple topics / generated answer | Limited | Best fit | Good fit |
+| Cross-channel middleware | Possible | Best fit | Good fit |
+| Longer-term memory / operations | Limited | Partial | Best fit |
+
+Don't optimize for "most agentic." Optimize for the minimum autonomy that solves the customer problem with acceptable operational risk.
 
 Their lesson for anyone starting this: get your data security and privacy team involved before you write the first line of agent code. The design decisions they'll ask for are the ones you can't retrofit later.
 
