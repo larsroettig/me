@@ -1,0 +1,160 @@
+---
+title: "Modern React Performance Without the Overhead"
+publishedAt: "2026-05-19"
+excerpt: "React is fast. Using it wrong isn't. INP replaced FID in March 2024, the React Compiler handles memoization automatically, and RSC payload size is the main network bottleneck most teams are ignoring. Here's how to find and fix each one."
+tags:
+  - React
+  - Performance
+  - Web Vitals
+  - React 19
+draft: false
+---
+
+A product manager says "we'll use React, performance won't be a problem." Two sprints later, the Lighthouse INP score is 800ms and the main thread is blocked on a 400 KB vendor bundle nobody audited.
+
+React itself isn't the problem. The flexibility is.
+
+## INP replaced FID, and most teams haven't adjusted
+
+Google's Core Web Vitals now measure three things:
+
+- **LCP (Largest Contentful Paint):** loading speed for elements *inside the viewport*. Anything below the fold doesn't count.
+- **CLS (Cumulative Layout Shift):** visual stability. React 19's native document metadata handling solves a category of CLS issues caused by stylesheets loading after first paint.
+- **INP (Interaction to Next Paint):** the one most teams are failing now. It replaced First Input Delay in March 2024 and measures every interaction across the page lifetime, not just the first. A single slow click handler tanks your score.
+
+FID was easy to pass because it only measured the first interaction. INP measures all of them, which means large synchronous bundles and heavy render trees anywhere on the page will show up.
+
+## Three browser profiles, not one
+
+Your daily browser lies to you. Extensions inject scripts, manipulate the DOM, and run background tasks. Lighthouse scores measured under those conditions aren't representative of what users see.
+
+Set up three profiles in Chrome or Firefox:
+
+1. **Dev profile:** all your extensions (React DevTools, Apollo, Redux, etc.). Use this for development.
+2. **Profiling profile:** zero extensions, CPU throttling enabled. Use this for Lighthouse and manual profiling.
+3. **Normal profile:** whatever you use day-to-day.
+
+Always profile a production build. Development mode adds diagnostic overhead that inflates render times and bundle sizes in ways that have nothing to do with what ships. Run `npm run build`, serve it locally, then open Lighthouse in the clean profile. The Lighthouse Tree Map shows you which dependencies are inflating which chunks; look there before opening the bundle analyzer.
+
+## The React Compiler doesn't fix bad state placement
+
+Before React 19, avoiding cascading re-renders meant wrapping things in `useMemo` and `useCallback`. It worked when done carefully, failed silently when done wrong, and cluttered codebases either way.
+
+The React Compiler statically analyzes your component tree and applies automatic memoization. You write straightforward JavaScript; the compiler handles the caching. This eliminates the category of "forgot to memoize this callback" bugs.
+
+What it doesn't fix: state placed too high in the component tree.
+
+If you have a text input and the user sees lag under CPU throttling, check where the state lives. The runtime evaluates every component between the state and the consumer on each keystroke. Move state as close to the consuming component as possible. The compiler can't restructure your component hierarchy; that decision belongs to you.
+
+## Bundle size and layout shift
+
+Heavy components loaded before they're needed block the main thread. `React.lazy` and `Suspense` fix this by fetching a component only when it's required:
+
+```tsx
+const HeavyChart = React.lazy(() => import("./HeavyChart"));
+
+function Dashboard() {
+  return (
+    <Suspense fallback={<ChartSkeleton />}>
+      <HeavyChart />
+    </Suspense>
+  );
+}
+```
+
+Check packages on [Bundlephobia](https://bundlephobia.com) before importing. A date-picker that pulls in 80 KB gzipped when you need one function is a problem you choose.
+
+React 19 adds native support for resource hoisting. You can prefetch DNS and preload assets from components without managing `<head>` manually, and `<title>`, `<meta>`, and `<link>` tags rendered anywhere in the component tree are automatically hoisted to `<head>`. That removes the need for `react-helmet` or equivalent libraries for the common case:
+
+```tsx
+import { prefetchDNS, preload } from "react-dom";
+
+prefetchDNS("https://fonts.googleapis.com");
+preload("/hero.webp", { as: "image" });
+```
+
+For CLS: give images explicit `width` and `height` attributes. The browser reserves the correct space before the asset arrives; without them, the layout shifts when the image loads and you lose CLS points for every user on a slow connection. Use loading skeletons rather than spinners; a skeleton anchors the layout geometry while data fetches.
+
+## Actions and optimistic UI
+
+Form handling in React pre-19 involved `isLoading` state, disabled buttons, and a UI that froze until the server responded. That pattern hurts INP because the interaction latency is the full round-trip time.
+
+React 19 introduces Actions and `useOptimistic`. The interaction updates the UI immediately; the server call runs in the background:
+
+```javascript
+"use client";
+import { useOptimistic, useActionState } from "react";
+import { addToCart } from "./actions";
+
+export default function BuyButton({ product }) {
+  const [optimisticQty, addOptimistic] = useOptimistic(0, (q, delta) => q + delta);
+  const [state, action, pending] = useActionState(addToCart, { ok: false });
+
+  return (
+    <form action={(formData) => {
+      addOptimistic(1);
+      action(formData);
+    }}>
+      <input type="hidden" name="productId" value={product.id} />
+      <button disabled={pending}>
+        {pending ? "Adding…" : "Add to cart"}
+      </button>
+      <p>In cart: {optimisticQty}</p>
+    </form>
+  );
+}
+```
+
+The click registers immediately. INP measures the time between the interaction and the next paint; with `useOptimistic`, that's milliseconds rather than the full server latency.
+
+React 19 also introduces `use()`, a new primitive that reads Promises or Context directly inside the render phase. Unlike hooks, it can be called conditionally, so you can suspend a component mid-render while a Promise resolves rather than managing that state manually:
+
+```tsx
+import { use, Suspense } from "react";
+
+function UserName({ userPromise }) {
+  const user = use(userPromise);
+  return <span>{user.name}</span>;
+}
+
+export default function Profile({ userPromise }) {
+  return (
+    <Suspense fallback={<span>Loading…</span>}>
+      <UserName userPromise={userPromise} />
+    </Suspense>
+  );
+}
+```
+
+The Suspense boundary catches the suspension; the parent doesn't need to know a Promise is involved at all.
+
+## What the RSC boundary actually costs
+
+Working with React Server Components on high-traffic sites, the payload crossing the network boundary is where performance gets lost, not the client rendering.
+
+The mistake: passing full database objects as props to Client Components. Every field on that object gets serialized into the RSC payload even if the component uses three of them. On a product page with a 40-field database record, that's a lot of JSON the browser decodes and discards.
+
+Pass exactly the fields the client needs, nothing more. Push `"use client"` as far down the tree as possible so the boundary is small. Stream static layout immediately and wrap slow data fetches in `<Suspense>`:
+
+```tsx
+async function ProductPage({ id }) {
+  const product = await db.products.findById(id);
+
+  return (
+    <div>
+      <StaticLayout />
+      <Suspense fallback={<ProductSkeleton />}>
+        <ProductClient
+          name={product.name}
+          price={product.price}
+          inStock={product.inStock}
+        />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+I came up from backend work before moving heavily into frontend and edge delivery, so I've seen both sides of this equation. The bottleneck is almost never the framework itself; it's the payload crossing the network boundary and what you decided to put in it.
+
+The tooling in React 19 is genuinely better. The structural rule is the same as it's always been: don't ship what the user doesn't immediately need.
