@@ -4,6 +4,7 @@ import ObfuscatedEmail from "@/components/ui/ObfuscatedEmail";
 export const metadata: Metadata = {
   title: "Privacy Statement",
   description: "Privacy statement for larsroettig.me",
+  robots: { index: false, follow: false },
 };
 
 export default function PrivacyPage() {

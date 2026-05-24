@@ -1,46 +1,75 @@
-# Lars Roettig
+# Lars Roettig — larsroettig.me
 
 Lars Roettig is a Senior Technical Architect at Adobe, based in Bavaria, Germany.
-He has worked at Adobe since August 2022 across two roles:
-- Adobe Commerce Technical Architect (Aug 2022 – Feb 2025)
-- Senior Technical Architect, AI focus (Feb 2025 – present)
+He specializes in AI agents, RAG systems, LLM integration, and large-scale software architecture.
 
-## About
+## Current Role
 
-Lars builds AI agents, LLM integrations, and technical architecture for creative
-workflows at Adobe scale. Before Adobe he spent 8 years as a software engineer
-and architect at TechDivision GmbH, working on large Magento/e-commerce platforms
-and serving as a maintainer on the Magento PWA Core Team.
+Senior Technical Architect at Adobe (AI focus, February 2025 – present).
+Previously Adobe Commerce Technical Architect at Adobe (August 2022 – February 2025).
+Before Adobe: 8 years as software engineer and architect at TechDivision GmbH,
+working on large Magento/Adobe Commerce platforms and serving as Magento PWA Core Team maintainer.
 
 ## Expertise
 
-- AI agents and LLM integration in production systems
+- AI agents and agentic AI systems in production
+- RAG (Retrieval-Augmented Generation) and vector search
+- LLM integration: Claude, OpenAI, local models via LM Studio
 - Technical architecture for large-scale web platforms
-- Adobe Commerce (formerly Magento) architecture
-- RAG systems and vector search (turbovec, LangChain, LlamaIndex)
+- Adobe Commerce (Magento) architecture
 - Rust and Tauri desktop application development
-- Next.js, TypeScript, React, Python
+- Next.js 15, TypeScript, React, Python
 
-## Projects
+## Open Source Projects
 
-- ThoughtForge: local-first AI planning assistant built with Tauri + Rust + React.
+- turbovec: High-performance vector store in Rust. Cuts a 10M-document corpus
+  from ~60 GB (float32) to ~7.5 GB (4-bit quantized) with no training pass and
+  unbiased similarity scores. https://github.com/larsroettig/turbovec
+
+- ThoughtForge: Local-first AI planning assistant built with Tauri + Rust + React.
   Extracts action items from meeting transcripts, manages tasks on a kanban board,
-  uses a local LLM via LM Studio, and ships a built-in MCP server for Claude Desktop.
-  Source: https://github.com/larsroettig/thoughtforge
+  uses a local LLM via LM Studio, ships a built-in MCP server for Claude Desktop.
+  https://github.com/larsroettig/thoughtforge
 
-## Writing
+## Blog Posts
 
-Lars writes about AI engineering, RAG, vector search, agent architecture, and
-practical software development at https://larsroettig.me/blog
+All posts: https://larsroettig.me/blog
+RSS feed: https://larsroettig.me/feed.xml
 
-Recent posts:
-- What I Learned Building AI Agents
-- turbovec: Local RAG Without the 31 GB Tax
-- ThoughtForge: What I Learned Building a Local AI Planning App
+- "AWS Summit Hamburg 2026: The Year Agentic AI Went from Hype to Production" (2026-05-23)
+  Real-world agentic AI deployments: automotive supply chain, self-healing HR platforms.
+  Covers the Strands Agents framework, production safety challenges, and a maturity model.
+  https://larsroettig.me/blog/aws-summit-2026-agentic-ai-production
+
+- "Building ThoughtForge with Claude Code: What Actually Works" (2026-05-17)
+  Lessons from building a local-first AI app almost entirely with Claude Code.
+  MCP server design, prompt reliability, Rust + Tauri architecture choices.
+  https://larsroettig.me/blog/thoughtforge-learnings
+
+- "turbovec: Local RAG Without the 60 GB Tax" (2026-05-17)
+  float32 embeddings eat RAM. turbovec uses 4-bit scalar quantization for a
+  10M-doc corpus: ~60 GB → ~7.5 GB with unbiased similarity scores.
+  https://larsroettig.me/blog/turbovec-rag
+
+- "Modern React Performance Without the Overhead" (2026-05-19)
+  INP replaced FID in 2024. React Compiler handles memoization automatically.
+  RSC payload size is the bottleneck most teams miss.
+  https://larsroettig.me/blog/modern-react-performance
+
+- "Hello, World — Why I Built This Site" (2026-05-17)
+  Why a personal site, what will be written here, and why it looks like a 1980s terminal.
+  https://larsroettig.me/blog/hello-world
+
+## Topics Covered
+
+AI Agents, Agentic AI, RAG, Vector Search, LLM Integration, React, Performance,
+Web Vitals, Rust, Python, Adobe Commerce, Local-First Software, MCP (Model Context Protocol),
+Claude Code, Software Architecture, Next.js, TypeScript
 
 ## Contact & Links
 
 - Website: https://larsroettig.me
+- Blog: https://larsroettig.me/blog
 - GitHub: https://github.com/larsroettig
-- LinkedIn: https://linkedin.com/in/larsroettig
+- LinkedIn: https://www.linkedin.com/in/larsroettig/
 - Location: Bavaria, Germany

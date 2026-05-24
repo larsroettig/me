@@ -4,6 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import NeonBadge from "@/components/ui/NeonBadge";
 import type { PostMeta } from "@/lib/types";
+import { slugifyTag } from "@/lib/slugify-tag";
 
 interface PostCardProps {
   post: PostMeta;
@@ -11,9 +12,8 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   return (
-    <Link
-      href={`/blog/${post.slug}`}
-      className="block group transition-all duration-300 rounded-sm p-6"
+    <div
+      className="relative group transition-all duration-300 rounded-sm p-6"
       style={{
         backgroundColor: "#0f0f1a",
         border: "1px solid #1a1a2e",
@@ -29,6 +29,13 @@ export default function PostCard({ post }: PostCardProps) {
         (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
       }}
     >
+      {/* Full-card link — sits behind tag links via z-index */}
+      <Link
+        href={`/blog/${post.slug}`}
+        className="absolute inset-0 rounded-sm"
+        aria-label={post.title}
+      />
+
       <div className="flex items-center gap-3 mb-3 font-mono text-xs" style={{ color: "#7878a0" }}>
         <time dateTime={post.publishedAt}>
           {format(new Date(post.publishedAt), "MMM dd, yyyy")}
@@ -40,14 +47,6 @@ export default function PostCard({ post }: PostCardProps) {
       <h2
         className="text-lg font-bold mb-2 transition-all duration-200 group-hover:text-neon-cyan"
         style={{ color: "#e0e0f0" }}
-        onMouseEnter={(e) => {
-          (e.target as HTMLElement).style.color = "#00f5ff";
-          (e.target as HTMLElement).style.textShadow = "var(--glow-cyan-sm)";
-        }}
-        onMouseLeave={(e) => {
-          (e.target as HTMLElement).style.color = "#e0e0f0";
-          (e.target as HTMLElement).style.textShadow = "none";
-        }}
       >
         {post.title}
       </h2>
@@ -57,12 +56,14 @@ export default function PostCard({ post }: PostCardProps) {
       </p>
 
       {post.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="relative z-10 flex flex-wrap gap-2">
           {post.tags.map((tag) => (
-            <NeonBadge key={tag} label={tag} variant="magenta" />
+            <Link key={tag} href={`/blog/tags/${slugifyTag(tag)}`}>
+              <NeonBadge label={tag} variant="magenta" />
+            </Link>
           ))}
         </div>
       )}
-    </Link>
+    </div>
   );
 }

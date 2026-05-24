@@ -30,13 +30,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: post.title,
       description: post.excerpt,
+      keywords: post.tags,
       openGraph: {
         type: "article",
         url: `${BASE_URL}/blog/${slug}`,
         title: post.title,
         description: post.excerpt,
         publishedTime: post.publishedAt,
+        modifiedTime: post.updatedAt ?? post.publishedAt,
         tags: post.tags,
+        images: [{ url: `${BASE_URL}/blog/${slug}/opengraph-image`, width: 1200, height: 630 }],
       },
       twitter: {
         card: "summary_large_image",
@@ -66,13 +69,16 @@ export default async function PostPage({ params }: PageProps) {
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
+    keywords: post.tags.join(", "),
     datePublished: post.publishedAt,
+    dateModified: post.updatedAt ?? post.publishedAt,
     url: `${BASE_URL}/blog/${slug}`,
-    image: `${BASE_URL}/lars-hero.jpg`,
+    image: `${BASE_URL}/blog/${slug}/opengraph-image`,
     author: {
       "@type": "Person",
       name: "Lars Roettig",
       url: BASE_URL,
+      description: "Senior Technical Architect at Adobe",
     },
   };
 

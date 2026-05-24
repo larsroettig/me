@@ -36,6 +36,11 @@ export const metadata: Metadata = {
     creator: "@larsroettig",
     images: [`${BASE_URL}/lars-hero.jpg`],
   },
+  alternates: {
+    types: {
+      "application/rss+xml": `${BASE_URL}/feed.xml`,
+    },
+  },
 };
 
 const personSchema = {
@@ -43,12 +48,20 @@ const personSchema = {
   "@type": "Person",
   name: "Lars Roettig",
   jobTitle: "Senior Technical Architect",
+  description:
+    "Senior Technical Architect at Adobe, specializing in AI agents, RAG systems, and scalable architecture. Based in Bavaria, Germany.",
   worksFor: { "@type": "Organization", name: "Adobe" },
   url: BASE_URL,
   image: `${BASE_URL}/lars-hero.jpg`,
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Großkarolinenfeld",
+    addressRegion: "Bavaria",
+    addressCountry: "DE",
+  },
   sameAs: [
     "https://github.com/larsroettig",
-    "https://linkedin.com/in/larsroettig",
+    "https://www.linkedin.com/in/larsroettig/",
   ],
   knowsAbout: [
     "AI Agents",
@@ -68,6 +81,12 @@ const websiteSchema = {
   url: BASE_URL,
 };
 
+const speakableSchema = {
+  "@context": "https://schema.org",
+  "@type": "SpeakableSpecification",
+  cssSelector: ["h1", "h2", "p"],
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -83,6 +102,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(speakableSchema) }}
         />
       </head>
       <body className="min-h-full flex flex-col antialiased">

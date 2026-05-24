@@ -4,6 +4,7 @@ import ObfuscatedEmail from "@/components/ui/ObfuscatedEmail";
 export const metadata: Metadata = {
   title: "Imprint",
   description: "Legal information and imprint for larsroettig.me",
+  robots: { index: false, follow: false },
 };
 
 export default function ImprintPage() {
