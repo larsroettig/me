@@ -33,6 +33,32 @@ export function getAllPosts(): PostMeta[] {
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
+export function getRelatedPosts(
+  currentSlug: string,
+  allPosts: PostMeta[],
+  limit = 3
+): PostMeta[] {
+  const current = allPosts.find((p) => p.slug === currentSlug);
+  const others = allPosts.filter((p) => p.slug !== currentSlug);
+  if (!current) {
+    return others
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+      .slice(0, limit);
+  }
+  return others
+    .map((p) => ({
+      post: p,
+      score: p.tags.filter((t) => current.tags.includes(t)).length,
+    }))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.post.publishedAt.localeCompare(a.post.publishedAt)
+    )
+    .slice(0, limit)
+    .map(({ post }) => post);
+}
+
 export function getPostBySlug(slug: string): Post {
   const source = fs.readFileSync(
     path.join(CONTENT_DIR, `${slug}.mdx`),

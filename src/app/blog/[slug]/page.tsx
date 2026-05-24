@@ -5,9 +5,10 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
-import { getAllPosts, getPostBySlug } from "@/lib/mdx";
+import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/mdx";
 import PostHeader from "@/components/blog/PostHeader";
 import AuthorBio from "@/components/blog/AuthorBio";
+import RelatedPosts from "@/components/blog/RelatedPosts";
 import MermaidDiagram from "@/components/blog/MermaidDiagram";
 import { rehypeMermaidComponent } from "@/lib/rehype-mermaid-component";
 import Link from "next/link";
@@ -57,6 +58,8 @@ export default async function PostPage({ params }: PageProps) {
   } catch {
     notFound();
   }
+
+  const related = getRelatedPosts(slug, getAllPosts());
 
   const blogPostingSchema = {
     "@context": "https://schema.org",
@@ -114,6 +117,8 @@ export default async function PostPage({ params }: PageProps) {
       </div>
 
       <AuthorBio />
+
+      <RelatedPosts posts={related} />
 
       <div className="mt-8 pt-8" style={{ borderTop: "1px solid #1a1a2e" }}>
         <Link
