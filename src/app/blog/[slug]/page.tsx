@@ -7,6 +7,7 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
 import { getAllPosts, getPostBySlug } from "@/lib/mdx";
 import PostHeader from "@/components/blog/PostHeader";
+import AuthorBio from "@/components/blog/AuthorBio";
 import MermaidDiagram from "@/components/blog/MermaidDiagram";
 import { rehypeMermaidComponent } from "@/lib/rehype-mermaid-component";
 import Link from "next/link";
@@ -112,7 +113,9 @@ export default async function PostPage({ params }: PageProps) {
         />
       </div>
 
-      <div className="mt-16 pt-8" style={{ borderTop: "1px solid #1a1a2e" }}>
+      <AuthorBio />
+
+      <div className="mt-8 pt-8" style={{ borderTop: "1px solid #1a1a2e" }}>
         <Link
           href="/blog"
           className="font-mono text-sm transition-colors duration-200"

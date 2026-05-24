@@ -5,6 +5,11 @@ import readingTime from "reading-time";
 import type { Post, PostMeta } from "./types";
 
 const CONTENT_DIR = path.join(process.cwd(), "content/blog");
+const AUDIO_DIR = path.join(process.cwd(), "public", "audio");
+
+function audioExists(slug: string): boolean {
+  return fs.existsSync(path.join(AUDIO_DIR, `${slug}.mp3`));
+}
 
 export function getAllPosts(): PostMeta[] {
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith(".mdx"));
@@ -21,6 +26,7 @@ export function getAllPosts(): PostMeta[] {
         tags: (data.tags as string[]) ?? [],
         readingTime: readingTime(content).text,
         draft: (data.draft as boolean) ?? false,
+        hasAudio: audioExists(slug),
       } satisfies PostMeta;
     })
     .filter((p) => process.env.NODE_ENV === "development" || !p.draft)
@@ -41,6 +47,7 @@ export function getPostBySlug(slug: string): Post {
     tags: (data.tags as string[]) ?? [],
     readingTime: readingTime(content).text,
     draft: (data.draft as boolean) ?? false,
+    hasAudio: audioExists(slug),
     content,
   };
 }

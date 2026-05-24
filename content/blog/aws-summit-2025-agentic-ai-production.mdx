@@ -28,7 +28,7 @@ Three capabilities stood out:
 >
 > **Meta-agents:** A primary orchestrator spawns sub-agents based on the task. Three patterns: Swarm (sub-agents work on parts of the problem in parallel, sharing a context space), Graph (directed hand-offs between specialized agents in sequence), and Think (the agent recursively spawns instances of itself to deepen reasoning before answering).
 
-The talk is worth watching in full: [Strands Agents deep-dive](https://www.youtube.com/watch?v=RQfW7eQsXqk&t=3130s).
+Similar talk from AWS re:Invent 2025: [Strands Agents deep-dive](https://www.youtube.com/watch?v=RQfW7eQsXqk&t=3130s).
 
 ## When an enterprise HR platform runs itself
 
@@ -81,7 +81,7 @@ flowchart LR
     C --> F[Ticket Update Composer]
     D --> F
 
-    F --> G[Zendesk / Salesforce API]
+    F --> G[Ticket API]
 ```
 
 > Multi-agent does not mean everyone talks to everyone.
@@ -90,7 +90,7 @@ Bounded specialization reduces accidental cross-talk and makes handoff behavior 
 
 - The **Router Agent** decides which specialized agent handles the request; nothing else does routing.
 - Specialized agents are isolated by responsibility and don't call each other directly.
-- Only the **Ticket Update Composer** writes back to external systems (Zendesk, Salesforce).
+- Only the **Ticket Update Composer** writes back to external systems (Ticket Systems).
 - Human escalation is an explicit path, not a fallback you discover at 2am.
 - Tool permissions and handoff contracts are defined up front, not negotiated at runtime.
 
@@ -123,11 +123,11 @@ Their lesson for anyone starting this: get your data security and privacy team i
 
 I also caught the expert-level session on building multi-tenant SaaS agents with Amazon Bedrock AgentCore. If you're building a platform where multiple customers each get their own AI agents, the isolation problem is harder than it looks.
 
-It's not just data partitioning. Tenant isolation in agentic systems runs across five dimensions: identity (each tenant's agents act with scoped credentials), memory (one tenant's conversation history can't leak into another's context), gateway (routing and rate-limiting per tenant), observability (tenant-scoped traces so you can debug without seeing another customer's data), and runtime (compute isolation so a runaway agent in one tenant doesn't affect others). The session walked through working examples for each.
+Tenant isolation in agentic systems runs across five dimensions: identity (each tenant's agents act with scoped credentials), memory (one tenant's conversation history can't leak into another's context), gateway (routing and rate-limiting per tenant), observability (tenant-scoped traces so you can debug without seeing another customer's data), and runtime (compute isolation so a runaway agent in one tenant doesn't affect others). The session walked through working examples for each.
 
 The framing they used, "intelligence as a service," is worth keeping. If you're building AI capabilities that other teams or customers consume, the SaaS constructs of onboarding, isolation, and identity propagation apply just as much as they do to any other service you'd build. The AgentCore primitives give you the building blocks; you still have to wire them together intentionally.
 
-Full session recording: [Building Multi-Tenant SaaS Agents with Amazon Bedrock AgentCore](https://www.youtube.com/watch?v=uwXrtyXXuy8).
+Similar session recording: [Building Multi-Tenant SaaS Agents with Amazon Bedrock AgentCore](https://www.youtube.com/watch?v=uwXrtyXXuy8).
 
 One published example that shows AgentCore working on a real regulated domain: an open-source medical content review application that cross-checks pharmaceutical marketing claims against clinical references, PubMed, OpenFDA, and ClinicalTrials.gov. A few architectural decisions in it are worth studying regardless of your domain. First, the reviewer sub-agents persist their findings to S3 and return only an S3 URI to the orchestrator; hundreds of findings from a 30-page document never flow through the orchestrator's context window, which would cause it to summarize and drop findings. Second, user identity is extracted server-side from the JWT `sub` claim, never from the request payload, which closes the impersonation-via-prompt-injection vector directly. Both patterns are reusable. Full writeup and open-source repo: [Accelerate Medical Content Review with Amazon Bedrock AgentCore](https://builder.aws.com/content/37phdmvQL1KmluO9s6xx0TJMod2/accelerate-medical-content-review-with-amazon-bedrock-agentcore).
 
@@ -139,7 +139,7 @@ Across several talks, a rough framework emerged for how companies are thinking a
 
 **Level 2** is autonomous task AI. The system handles entire workflows: self-documentation, quality monitoring, task routing. Humans oversee outcomes, not individual steps.
 
-**Level 3** is self-monitoring systems. The system diagnoses its own failures, builds its own capabilities, and adapts its own configuration. Human oversight is exception-based, not routine.
+**Level 3** is self-monitoring systems. The system diagnoses its own failures and builds capabilities it didn't have before. Human oversight is exception-based, not routine.
 
 Most of the companies presenting were somewhere in the Level 1 to Level 2 transition. The energy company's HR platform was the one example of Level 3 running in production. That gap is worth knowing about before you start planning, because Level 2 requires different architecture decisions than Level 1, and Level 3 requires different trust decisions than Level 2.
 
@@ -149,7 +149,7 @@ The results are real: $800K saved, hours to five minutes, resolution time down 6
 
 But three problems came up in nearly every talk, and nobody presented a clean solution.
 
-**Hallucination in production** is no longer just a research concern. When your agent is writing transformation plugins and deploying them, a confidently wrong answer has operational consequences. Teams are managing this with human-in-the-loop gates at specific checkpoints, not by solving hallucination itself.
+**Hallucination in production** has operational consequences now. When your agent is writing transformation plugins and deploying them, a confidently wrong answer triggers real failures. Teams are managing this with human-in-the-loop gates at specific checkpoints.
 
 **Prompt injection and prompt protection** got less stage time than they deserved. As agents act on data from external systems, the attack surface grows. One concrete mitigation that came up in the AgentCore examples: extract user identity from the JWT server-side, never from the request payload, so attackers can't impersonate users through crafted input. That closes one specific vector; the broader problem of agents acting on adversarial content from external sources is still largely unsolved in practice.
 
@@ -159,11 +159,11 @@ These are reasons to build carefully, with privacy by default and observability 
 
 ## Context engineering is the next skill
 
-Prompt engineering was the first visible handle: write better prompts, get better outputs, tight feedback loop. The harder problem in agentic systems is what surrounds the prompt: what context an agent has access to, when it gets loaded, how much fits in the window, and what happens when it doesn't.
+Prompt engineering was the first visible handle: write better prompts, get better outputs. The feedback loop was tight. The harder problem in agentic systems is what surrounds the prompt: what context an agent has access to, when it gets loaded, how much fits in the window, and what happens when it doesn't.
 
 The AgentCore medical content review example makes this concrete. Reviewer sub-agents persist findings to S3 and hand the orchestrator a URI instead of the content; the full set is loaded once, at the final editing pass. That's a context engineering decision: controlling which information exists in which agent's window at which moment, specifically to prevent the model from silently dropping findings it can't fit.
 
-The same pattern shows up in the Strands memory model (Bedrock Knowledge Bases retrieve relevant past sessions, not all of them), in the e-commerce platform's lifecycle gates (explicit stages controlling what context is available at each step), and in every multi-agent architecture I saw at the summit. The common thread is explicit decisions about what each agent knows and when.
+The same pattern shows up in the Strands memory model (Bedrock Knowledge Bases retrieve relevant past sessions, not all of them) and in the e-commerce platform's lifecycle gates (explicit stages controlling what context is available at each step). Every multi-agent architecture at the summit made the same choice. The common thread is explicit decisions about what each agent knows and when.
 
 Context windows are a real production constraint, not a theoretical one. As agents chain together and produce intermediate output, what you carry forward and what you discard is an architectural choice. Getting it wrong makes the system quietly incorrect in ways that are hard to debug, because the model won't tell you it dropped something.
 
@@ -171,7 +171,7 @@ Treat context design with the same seriousness as a data model.
 
 ## What I took away
 
-The energy was different from the recordings I'd watched in previous years. Companies were comparing notes: sharing what broke, what they'd do differently, what they'd tell their past selves.
+The energy was different from the recordings I'd watched in previous years. Companies were comparing notes, sharing what broke and what they'd do differently.
 
 The part worth repeating to anyone building with AI right now: share the positive stories. The results from these companies are real and worth talking about with your team. And while you're doing that, keep hallucination and data protection as first-class design constraints, not late-stage reviews. Include the people who care about those things early; they make the system better, not slower.
 

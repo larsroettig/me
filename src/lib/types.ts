@@ -6,6 +6,7 @@ export interface PostMeta {
   tags: string[];
   readingTime: string;
   draft?: boolean;
+  hasAudio?: boolean;
 }
 
 export interface Post extends PostMeta {

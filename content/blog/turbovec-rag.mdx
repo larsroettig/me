@@ -1,7 +1,7 @@
 ---
-title: "turbovec: Local RAG Without the 31 GB Tax"
+title: "turbovec: Local RAG Without the 60 GB Tax"
 publishedAt: "2026-05-17"
-excerpt: "float32 embeddings eat RAM fast, but compressing for memory and compressing for correct similarity search are different problems. turbovec solves both: 31 GB to 4 GB, no training pass, unbiased similarity scores."
+excerpt: "float32 embeddings eat RAM fast. turbovec cuts a 10M-doc corpus from ~60 GB to ~7.5 GB at 4-bit, with no training pass and unbiased similarity scores."
 tags:
   - RAG
   - Vector Search
@@ -15,13 +15,13 @@ A 1536-dimensional float32 embedding is 6 KB. A corpus of 10 million documents i
 
 I kept reaching for FAISS. It works, but I kept hitting two friction points: training requires a representative sample of your corpus upfront, and compression quality depends on how well that sample matches the real distribution. If your data distribution shifts, you're rebuilding.
 
-[turbovec](https://github.com/RyanCodrai/turbovec) solves both, and the [TurboQuant paper](https://arxiv.org/abs/2504.19874) (ICLR 2026, Google Research + NYU) explains the math behind why it can skip the training step entirely.
+[turbovec](https://github.com/RyanCodrai/turbovec) solves both, and the [TurboQuant paper](https://arxiv.org/abs/2504.19874) (arXiv April 2025, Google Research + NYU) explains the math behind why it can skip the training step entirely.
 
 ## What TurboQuant actually does
 
 The core idea is a mathematical trick: apply a random rotation to your vectors before compressing them.
 
-After rotation, each coordinate follows a Beta distribution that converges to Gaussian N(0, 1/d) in high dimensions. The coordinates also become nearly independent of each other. That combination matters because it means you can quantize each coordinate on its own, using bucket boundaries precomputed from the math, with no data required upfront.
+After rotation, each coordinate follows a scaled Beta distribution that converges to Gaussian N(0, 1/d) in high dimensions. The coordinates also become nearly independent. That combination is what makes training-free quantization possible: you can precompute optimal bucket boundaries from pure math, with no data required upfront.
 
 The algorithm in four steps:
 
@@ -30,21 +30,21 @@ The algorithm in four steps:
 3. Quantize each rotated coordinate against precomputed bucket boundaries; at 4-bit that's 16 buckets per coordinate
 4. Pack the integers: a 1536-dim vector goes from 6,144 bytes (float32) to 384 bytes
 
-A 10M-doc corpus: 31 GB float32 becomes 4 GB. The paper proves this lands within 2.7x of the theoretical best achievable compression at any bit-width, which is tight for a training-free method. At 4-bit specifically, reconstruction error (MSE) is approximately 0.009.
+A 10M-doc corpus: ~60 GB float32 becomes ~7.5 GB at 4-bit, an 8x reduction. The paper proves the MSE distortion lands within a factor of √3·π/2 ≈ 2.7 of the information-theoretic lower bound at any bit-width, which is tight for a training-free method. At 4-bit specifically, MSE is approximately 0.009.
 
-Search doesn't decompress vectors. It rotates the query once into the same domain and scores against codebook centroids using SIMD kernels (NEON on ARM, AVX-512 on x86). On ARM it beats FAISS IndexPQFastScan by 12-20%.
+Search doesn't decompress vectors. It rotates the query once into the same domain and scores against codebook centroids using SIMD kernels (NEON on ARM, AVX-512 on x86). Per turbovec's own benchmarks, on ARM it beats FAISS IndexPQFastScan by 12-20%.
 
 ## The part I initially glossed over: MSE and inner product are different problems
 
-Compressing to minimize reconstruction error and compressing to preserve similarity scores are not the same thing, and for RAG the second one is what actually matters.
+For RAG, what matters is preserving similarity scores, and MSE-optimized quantizers don't do that.
 
-When you search a vector index, you're finding stored vectors with the highest dot product against your query. That's inner product similarity. The TurboQuant paper proves that quantizers optimized purely for reconstruction accuracy (MSE) introduce bias into inner product estimates. The compressed vectors rebuild accurately, but their similarity scores with a query vector are systematically off. You get wrong nearest neighbors.
+When you search a vector index, you're finding stored vectors with the highest dot product against your query. The TurboQuant paper proves that quantizers optimized purely for reconstruction accuracy introduce bias into inner product estimates. The compressed vectors rebuild accurately, but their similarity scores with a query vector are systematically off. You get wrong nearest neighbors.
 
 TurboQuant fixes this with a two-stage approach. Stage one applies MSE quantization at one fewer bit than your target budget (so 3 bits if you want 4-bit total), which minimizes reconstruction error and shrinks the residual as much as possible. Stage two takes that residual and applies a 1-bit random projection transform called QJL (Quantized Johnson-Lindenstrauss). QJL is an optimal 1-bit inner product quantizer: it reduces the residual to a single bit per dimension using `sign(random_matrix · vector)`, and the paper proves this makes the combined estimator unbiased.
 
 The whole thing is data-oblivious. It works on the first vector you add to the index. The result is near-optimal reconstruction accuracy and unbiased similarity scores at your target bit-width.
 
-For KV cache compression in long-context LLMs (storing attention keys and values), the same algorithm achieves perfect quality neutrality at 3.5 bits per channel and only marginal degradation at 2.5 bits, while compressing the cache by more than 5x. That's the paper's other main result; the inner product unbiasedness property is what makes it work for attention computation.
+For KV cache compression in long-context LLMs (storing attention keys and values), the paper tests Llama-3.1-8B on LongBench-E: 3.5 bits per channel matches unquantized quality, 2.5 bits shows only marginal degradation, while compressing the cache by more than 5x. The inner product unbiasedness property is what makes it work for attention computation.
 
 ## The practical part: one import swap
 
@@ -77,13 +77,60 @@ scores, ids = index.search(query, k=10)
 index.remove(1002)  # O(1) by id
 ```
 
+## What the pgvector benchmarks actually show
+
+I implemented turboquant for pgvector and ran the [RAG benchmarks](https://github.com/mayflower/pgvector/#rag-benchmarks) together with Johann-Peter Hartmann, who did most of the heavy benchmarking work. Thanks, Johann.
+
+The storage and index scan wins are real. At 4-bit, your vector column shrinks by around 8x, and index scans run faster because you're moving far less data through memory. On a large corpus, that gap is meaningful.
+
+The retrieval quality story is less clean. Quantizing inside pgvector degrades recall measurably compared to full float32 search. You can lose real top candidates from your top-k window. The TurboQuant unbiasedness proof is mathematically correct, but unbiased inner product estimates still carry variance at 4 bits, and in dense retrieval that variance pushes results around. The second-best document in float32 might not appear in your top-10 at 4-bit.
+
+Two cases where the trade-off still makes sense: storage-constrained deployments where approximate retrieval is acceptable, or pipelines that rerank with a cross-encoder anyway (the reranker recovers from retrieval noise). If you're running semantic search where missing the true top result matters, measure your recall on a held-out set before committing.
+
+If you want to run this comparison yourself against your own corpus, here's the benchmark setup I used:
+
+```python
+import numpy as np
+import time
+from turbovec import IdMapIndex
+
+dim = 1536
+num_vectors = 1_000_000
+
+embeddings = np.random.randn(num_vectors, dim).astype("float32")
+embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
+ids = np.arange(1, num_vectors + 1, dtype=np.uint64)
+
+queries = np.random.randn(100, dim).astype("float32")
+queries /= np.linalg.norm(queries, axis=1, keepdims=True)
+
+t0 = time.perf_counter()
+index = IdMapIndex(dim=dim, bit_width=4)
+index.add_with_ids(embeddings, ids)
+print(f"build: {time.perf_counter() - t0:.2f}s")
+
+latencies = []
+for q in queries:
+    t0 = time.perf_counter()
+    index.search(q, k=10)
+    latencies.append(time.perf_counter() - t0)
+
+avg_ms = np.mean(latencies) * 1000
+p99_ms = np.percentile(latencies, 99) * 1000
+print(f"avg: {avg_ms:.2f}ms  p99: {p99_ms:.2f}ms")
+```
+
+No training pass, no codebook warmup. The index is ready to search after the first `add_with_ids` call. Swap in your real embeddings and IDs, then run the same timing loop against FAISS `IndexPQFastScan` at the same bit-width to get a direct comparison.
+
 ## When FAISS is still the right tool
 
 turbovec is an in-memory flat index: it searches all vectors on every query. For a few million vectors on a single machine, that's fine. At hundreds of millions you need IVF partitioning to reduce the search scope, and FAISS handles that.
 
-On low-dimensional embeddings (d=200, GloVe territory), turbovec's recall at R@1 lags FAISS by 3-6 points. The Beta distribution assumption loosens at low dimensions. For modern embedding models (d=1536, d=3072), the gap is essentially zero; both converge to 1.0 recall by k=4-8.
+The ARM picture is clean: turbovec beats FAISS IndexPQFastScan by 12-20% across typical configurations. x86 is more conditional. At 4-bit, turbovec wins by 1-6% due to tighter cache lines and faster bit-unpacking. At 2-bit single-threaded, they run within 1% of each other. At 2-bit multi-threaded on AVX-512 hardware, FAISS pulls ahead by 2-4%; it exploits AVX-512 VBMI for bit manipulation during concurrent sweeps, an instruction path turbovec doesn't yet use. On enterprise x86 with high thread counts at 2-bit, that edge is real.
 
-The rule: turbovec for local RAG with modern embedding dimensions, FAISS for very large corpora or GPU-accelerated search.
+At high dimensions (d=1536, d=3072), turbovec matches or beats FAISS at R@1; both converge to 1.0 recall by k=4-8. At d=200 (GloVe territory), turbovec trails at R@1 because the near-Gaussian approximation from the random rotation weakens at low dimensions.
+
+The rule: turbovec for local RAG with modern embedding dimensions, FAISS for very large corpora, GPU-accelerated search, or multi-threaded 2-bit lookups on AVX-512 servers.
 
 ## What I'm using it for
 
