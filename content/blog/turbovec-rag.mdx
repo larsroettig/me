@@ -79,7 +79,8 @@ index.remove(1002)  # O(1) by id
 
 ## What the pgvector benchmarks actually show
 
-I have been exploring turboquant for use with pgvector. To evaluate its performance, I ran the RAG benchmarks created by Johann-Peter Hartmann.
+I have been exploring turboquant for use with pgvector. To evaluate its performance, I ran the RAG benchmarks created by Johann-Peter Hartmann
+[rag-benchmarks](https://github.com/mayflower/pgvector/#rag-benchmarks)
 
 The storage and index scan wins are real. At 4-bit, your vector column shrinks by around 8x, and index scans run faster because you're moving far less data through memory. On a large corpus, that gap is meaningful.
 
