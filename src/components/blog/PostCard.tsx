@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import NeonBadge from "@/components/ui/NeonBadge";
 import type { PostMeta } from "@/lib/types";
-import { slugifyTag } from "@/lib/slugify-tag";
 
 interface PostCardProps {
   post: PostMeta;
@@ -55,15 +53,6 @@ export default function PostCard({ post }: PostCardProps) {
         {post.excerpt}
       </p>
 
-      {post.tags.length > 0 && (
-        <div className="relative z-10 flex flex-wrap gap-2">
-          {post.tags.map((tag) => (
-            <Link key={tag} href={`/blog/tags/${slugifyTag(tag)}`}>
-              <NeonBadge label={tag} variant="magenta" />
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

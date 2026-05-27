@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getAllPosts } from "@/lib/mdx";
-import PostCard from "@/components/blog/PostCard";
+import BlogFilter from "@/components/blog/BlogFilter";
 import SectionHeading from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
@@ -17,18 +17,7 @@ export default function BlogPage() {
         title="BLOG"
         subtitle="Writing about AI agents, architecture, and the craft of engineering"
       />
-
-      {posts.length === 0 ? (
-        <p className="font-mono text-sm" style={{ color: "#7878a0" }}>
-          // No posts yet. Check back soon.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {posts.map((post) => (
-            <PostCard key={post.slug} post={post} />
-          ))}
-        </div>
-      )}
+      <BlogFilter posts={posts} />
     </div>
   );
 }
